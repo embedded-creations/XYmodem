@@ -25,6 +25,7 @@ SOFTWARE.
 #include <Arduino.h>
 #include <xymodem.h>
 
+// TODO: make debug port configurable
 #define DEBUG_ON 0
 
 #if DEBUG_ON
@@ -46,22 +47,22 @@ SOFTWARE.
 /*
  * Start XMODEM receive. rx = receive XMODEM
  */
-int XYmodem::start_rx(Stream *port, const char *rx_filename, bool rx_buf_1k, bool useCRC)
+int XYmodem::start_rx(Stream &port, const char *rx_filename, bool rx_buf_1k, bool useCRC)
 {
   YMODEM = false;
-  return start(port, NULL, rx_filename, rx_buf_1k, useCRC);
+  return start(&port, NULL, rx_filename, rx_buf_1k, useCRC);
 }
 
 /*
  * Start YMODEM receive. YMODEM is also known as batch mode. rb = receive batch.
  */
-int XYmodem::start_rb(Stream *port, void *filesys, bool rx_buf_1k, bool useCRC)
+int XYmodem::start_rb(Stream &port, FS &filesys, bool rx_buf_1k, bool useCRC)
 {
   YMODEM = true;
-  return start(port, filesys, NULL, rx_buf_1k, useCRC);
+  return start(&port, &filesys, NULL, rx_buf_1k, useCRC);
 }
 
-int XYmodem::start(Stream *port, void *filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC)
+int XYmodem::start(Stream *port, FS *filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC)
 {
   rx_buf_size = 128;
   if (rx_buf_1k) {
@@ -82,16 +83,16 @@ int XYmodem::start(Stream *port, void *filesys, const char *rx_filename, bool rx
   next_block = 1;
   reply = (CRC_on)? 'C' : NAK;
   this->port = port;
-  this->filesys = (FATFILESYS_CLASS *)filesys;
+  this->fsptr = (FS *)filesys;
   port->write(reply);
   port->flush();
   next_millis = millis()+ TIMEOUT_LONG;
   if (rx_filename != NULL && *rx_filename != '\0') {
     dbprint("XYmodem starting <"); dbprint(rx_filename); dbprintln('>');
-    this->filesys->remove((char *)rx_filename);
+    this->fsptr->remove((char *)rx_filename);
     strncpy(this->rx_filename, (char *)rx_buf, sizeof(this->rx_filename)-1);
     this->rx_filename[sizeof(this->rx_filename)-1] = '\0';
-    rxmodem = this->filesys->open(this->rx_filename, FILE_WRITE);
+    rxmodem = this->fsptr->open(this->rx_filename, FILE_WRITE);
     if (rxmodem) {
       return 0;
     }
@@ -266,10 +267,10 @@ int XYmodem::loop(void)
               // ymodem block 0 file name, file size, etc.
               dbprint("rx file name="); dbprintln((char *)rx_buf);
               if (rx_buf[0] != '\0') {
-                filesys->remove((char *)rx_buf);
+                fsptr->remove((char *)rx_buf);
                 strncpy(rx_filename, (char *)rx_buf, sizeof(rx_filename)-1);
                 rx_filename[sizeof(rx_filename)-1] = '\0';
-                rxmodem = filesys->open(rx_filename, FILE_WRITE);
+                rxmodem = fsptr->open(rx_filename, FILE_WRITE);
                 if (rxmodem) {
                   rxmodem_state = BLOCKSTART;
                   next_block = 1;
@@ -324,10 +325,10 @@ int XYmodem::loop(void)
             // ymodem block 0 file name, file size, etc.
             dbprint("rx file name="); dbprintln((char *)rx_buf);
             if (rx_buf[0] != '\0') {
-              filesys->remove((char *)rx_buf);
+              fsptr->remove((char *)rx_buf);
               strncpy(rx_filename, (char *)rx_buf, sizeof(rx_filename)-1);
               rx_filename[sizeof(rx_filename)-1] = '\0';
-              rxmodem = filesys->open(rx_filename, FILE_WRITE);
+              rxmodem = fsptr->open(rx_filename, FILE_WRITE);
               if (rxmodem) {
                 rxmodem_state = BLOCKSTART;
                 next_block = 1;
@@ -389,6 +390,8 @@ inline uint16_t XYmodem::updcrc(uint8_t c, uint16_t crc)
   return crc;
 }
 
+// TODO: move these out into the CPE-specific examples
+#if 0
 #if defined(ADAFRUIT_SPIFLASH)
 void XYmodem::format_flash() {
   // Partition the flash with 1 partition that takes the entire space.
@@ -474,3 +477,4 @@ int XYmodem::begin()
   }
   return 0;
 }
+#endif

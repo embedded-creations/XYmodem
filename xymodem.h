@@ -25,6 +25,8 @@ SOFTWARE.
 #ifndef _XYMODEM_H_
 #define _XYMODEM_H_
 
+// TODO: move these out into the CPE-specific examples
+#if 0
 #if defined(ADAFRUIT_ITSYBITSY_M0) || defined(ADAFRUIT_CIRCUITPLAYGROUND_M0)
 #define ADAFRUIT_SPIFLASH 1
 #define FATFILESYS fatfs
@@ -108,6 +110,9 @@ extern Adafruit_W25Q16BV_FatFs fatfs;
 #define chipSelect
 #define XMODEM_PORT Serial
 #endif
+#endif
+
+#include <FS.h>
 
 #define SOH 0x01
 #define STX 0x02
@@ -118,9 +123,20 @@ extern Adafruit_W25Q16BV_FatFs fatfs;
 
 class XYmodem {
   public:
-    int start_rx(Stream *port, const char *rx_filename, bool rx_buf_1k, bool useCRC);
-    int start_rb(Stream *port, void *filesys, bool rx_buf_1k, bool useCRC);
-    int begin(void);
+    XYmodem() {
+      this->debugPort = NULL;
+    };
+    
+    XYmodem(Stream &debugPort) {
+      this->debugPort = &debugPort;
+    };
+
+    // TODO: not working as is, need to fix/remove and update arguments to new format
+    int start_rx(Stream &port, const char *rx_filename, bool rx_buf_1k, bool useCRC);
+
+    // TODO: why not include port in constructor, instead of each start call?
+    int start_rb(Stream &port, FS &filesys, bool rx_buf_1k, bool useCRC);
+    //int begin(void);
     int loop(void);
   private:
     const uint32_t TIMEOUT_LONG=3000;
@@ -141,11 +157,11 @@ class XYmodem {
     bool CRC_on = false;
     bool YMODEM = false;
     Stream *port;
-    FATFILESYS_CLASS *filesys;
+    Stream *debugPort;
+    FS *fsptr;
 
   private:
-    int start(Stream *port, void *filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC);
-    void format_flash();
+    int start(Stream *port, FS *filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC);
     uint16_t updcrc(uint8_t c, uint16_t crc);
 };
 
