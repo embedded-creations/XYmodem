@@ -3,6 +3,7 @@
 
 #include "xymodem.h"
 
+// https://isocpp.org/wiki/faq/pointers-to-members
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object)->*(ptrToMember))
 
 class SerialFileBrowser {
@@ -65,7 +66,6 @@ class SerialFileBrowser {
     File CaptureFile;
     FS *fsptr;
 
-    // TODO: actually use port instead of hardcoded Serial everywhere
     Stream *port;
     XYmodem rxymodem;
 };
