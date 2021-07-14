@@ -127,8 +127,8 @@ class XYmodem {
       this->debugPort = NULL;
     };
     
-    XYmodem(Stream &debugPort) {
-      this->debugPort = &debugPort;
+    XYmodem(Stream *debugPort) {
+      this->debugPort = debugPort;
     };
 
     // TODO: not working as is, need to fix/remove and update arguments to new format

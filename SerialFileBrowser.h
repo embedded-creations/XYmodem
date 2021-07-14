@@ -11,6 +11,14 @@ class SerialFileBrowser {
     SerialFileBrowser(Stream &port, FS &fs) {
       this->port = &port;
       fsptr = &fs;
+      this->debugport = NULL;
+    }
+
+    SerialFileBrowser(Stream &port, FS &fs, Stream &debugport)
+    : rxymodem(&debugport) {
+      this->port = &port;
+      fsptr = &fs;
+      this->debugport = &debugport;
     }
 
     void setup_cli(void);
@@ -67,6 +75,7 @@ class SerialFileBrowser {
     FS *fsptr;
 
     Stream *port;
+    Stream *debugport;
     XYmodem rxymodem;
 };
 

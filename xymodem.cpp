@@ -25,24 +25,8 @@ SOFTWARE.
 #include <Arduino.h>
 #include <xymodem.h>
 
-// TODO: make debug port configurable
-#define DEBUG_ON 0
-
-#if DEBUG_ON
-// Arduino Zero, -DUSB_VID=0x2341 -DUSB_PID=0x804d
-#if USB_VID==0x2341 && USB_PID==0x804d
-/* Programming port */
-#define Debug_Serial Serial
-#else
-#define Debug_Serial Serial1
-#endif
-
-#define dbprint(...) Debug_Serial.print(__VA_ARGS__)
-#define dbprintln(...) Debug_Serial.println(__VA_ARGS__)
-#else
-#define dbprint(...)
-#define dbprintln(...)
-#endif
+#define dbprint(...) if(debugPort) debugPort->print(__VA_ARGS__)
+#define dbprintln(...) if(debugPort) debugPort->println(__VA_ARGS__)
 
 /*
  * Start XMODEM receive. rx = receive XMODEM
