@@ -31,10 +31,10 @@ SOFTWARE.
 /*
  * Start XMODEM receive. rx = receive XMODEM
  */
-int XYmodem::start_rx(Stream &port, const char *rx_filename, bool rx_buf_1k, bool useCRC)
+int XYmodem::start_rx(Stream &port, FS &filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC)
 {
   YMODEM = false;
-  return start(&port, NULL, rx_filename, rx_buf_1k, useCRC);
+  return start(&port, &filesys, rx_filename, rx_buf_1k, useCRC);
 }
 
 /*
@@ -84,11 +84,11 @@ int XYmodem::start(Stream *port, FS *filesys, const char *rx_filename, bool rx_b
       strcpy(this->rx_dirname, "");
     }
   } else if (rx_filename != NULL && *rx_filename != '\0') {
-    dbprint("XYmodem starting <"); dbprint(rx_filename); dbprintln('>');
+    strcpy(this->rx_dirname, "");
+    dbprint("rx file name (rx_buf)="); dbprintln((char *)rx_filename);
+    make_full_pathname((char*)rx_filename, this->rx_filename, sizeof(this->rx_filename)-1);
+    dbprint("XYmodem starting <"); dbprint(this->rx_filename); dbprintln('>');
     this->fsptr->remove((char *)rx_filename);
-    strncpy(this->rx_filename, (char *)rx_buf, sizeof(this->rx_filename)-1);
-    this->rx_filename[sizeof(this->rx_filename)-1] = '\0';
-    // TODO: XMODEM receive is broken, and has at least this existing bug:  copying from empty rx_buf instead of rx_filename
     rxmodem = this->fsptr->open(this->rx_filename, FILE_WRITE);
     if (rxmodem) {
       return 0;
@@ -160,7 +160,7 @@ int XYmodem::loop(void)
             if (rxmodem) {
               dbprint("YMODEM="); dbprintln(YMODEM, DEC);
               dbprint("filename="); dbprintln(rx_filename);
-              if (YMODEM && (strcmp(rx_filename, "") == 0))
+              if (YMODEM && ((strcmp(rx_filename, "") == 0) || (strcmp(rx_filename, "/") == 0)))
                 rxmodem_state = IDLE;
               else
                 rxmodem_state = BLOCKSTART;
@@ -253,6 +253,7 @@ int XYmodem::loop(void)
               dbprintln("Good block");
               next_block++;
               uint32_t bytesOut = min((uint32_t)blocksizenext, rx_file_remaining);
+              if(!YMODEM) bytesOut = blocksizenext; // with XMODEM transfer, expepcted length is unknown
               rxmodem.write(rx_buf, bytesOut);
               rx_file_remaining -= bytesOut;
               dbprint("rx_file_remaining="); dbprint(rx_file_remaining);
@@ -313,6 +314,7 @@ int XYmodem::loop(void)
             dbprintln("Good block");
             next_block++;
             uint32_t bytesOut = min((uint32_t)blocksizenext, rx_file_remaining);
+            if(!YMODEM) bytesOut = blocksizenext; // with XMODEM transfer, expepcted length is unknown
             rxmodem.write(rx_buf, bytesOut);
             rx_file_remaining -= bytesOut;
             dbprint("rx_file_remaining="); dbprint(rx_file_remaining);

@@ -241,7 +241,7 @@ void SerialFileBrowser::print_working_dir(char *aLine) {
 void SerialFileBrowser::recv_xmodem(char *aLine) {
   char *filename = strtok(NULL, " \t");
 
-  rxymodem.start_rx(*port, filename, true, true);
+  rxymodem.start_rx(*port, *fsptr, filename, true, true);
   XYmodemMode = true;
 }
 

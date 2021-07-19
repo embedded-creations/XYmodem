@@ -132,7 +132,7 @@ class XYmodem {
     };
 
     // TODO: not working as is, need to fix/remove and update arguments to new format
-    int start_rx(Stream &port, const char *rx_filename, bool rx_buf_1k, bool useCRC);
+    int start_rx(Stream &port, FS &filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC);
 
     // TODO: why not include port in constructor, instead of each start call?
     int start_rb(Stream &port, FS &filesys, bool rx_buf_1k, bool useCRC);
