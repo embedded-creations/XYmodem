@@ -46,6 +46,12 @@ int XYmodem::start_rb(Stream &port, FS &filesys, bool rx_buf_1k, bool useCRC)
   return start(&port, &filesys, NULL, rx_buf_1k, useCRC);
 }
 
+int XYmodem::start_rb(Stream &port, FS &filesys, const char *rx_directory, bool rx_buf_1k, bool useCRC)
+{
+  YMODEM = true;
+  return start(&port, &filesys, rx_directory, rx_buf_1k, useCRC);
+}
+
 int XYmodem::start(Stream *port, FS *filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC)
 {
   rx_buf_size = 128;
@@ -71,11 +77,18 @@ int XYmodem::start(Stream *port, FS *filesys, const char *rx_filename, bool rx_b
   port->write(reply);
   port->flush();
   next_millis = millis()+ TIMEOUT_LONG;
-  if (rx_filename != NULL && *rx_filename != '\0') {
+  if(YMODEM) {
+    if (rx_filename != NULL && *rx_filename != '\0') {
+      strncpy(this->rx_dirname, (char *)rx_filename, sizeof(this->rx_filename)-1);
+    } else {
+      strcpy(this->rx_dirname, "");
+    }
+  } else if (rx_filename != NULL && *rx_filename != '\0') {
     dbprint("XYmodem starting <"); dbprint(rx_filename); dbprintln('>');
     this->fsptr->remove((char *)rx_filename);
     strncpy(this->rx_filename, (char *)rx_buf, sizeof(this->rx_filename)-1);
     this->rx_filename[sizeof(this->rx_filename)-1] = '\0';
+    // TODO: XMODEM receive is broken, and has at least this existing bug:  copying from empty rx_buf instead of rx_filename
     rxmodem = this->fsptr->open(this->rx_filename, FILE_WRITE);
     if (rxmodem) {
       return 0;
@@ -204,7 +217,7 @@ int XYmodem::loop(void)
           dbprint("bytesAvail=");
           dbprintln(bytesAvail);
           if (bytesAvail > 0) {
-            bytesIn = port->readBytes((char *)p, min(bytesAvail, blocksize));
+            bytesIn = port->readBytes((char *)p, min((uint16_t)bytesAvail, blocksize));
             dbprint("blocksize=");
             dbprint(blocksize);
             dbprint(" bytesIn=");
@@ -239,7 +252,7 @@ int XYmodem::loop(void)
             if (block == next_block) {
               dbprintln("Good block");
               next_block++;
-              int bytesOut = min(blocksizenext, rx_file_remaining);
+              uint32_t bytesOut = min((uint32_t)blocksizenext, rx_file_remaining);
               rxmodem.write(rx_buf, bytesOut);
               rx_file_remaining -= bytesOut;
               dbprint("rx_file_remaining="); dbprint(rx_file_remaining);
@@ -249,10 +262,12 @@ int XYmodem::loop(void)
             }
             else if (block == 0) {
               // ymodem block 0 file name, file size, etc.
-              dbprint("rx file name="); dbprintln((char *)rx_buf);
+              dbprint("rx file name (rx_buf)="); dbprintln((char *)rx_buf);
+              make_full_pathname((char*)rx_buf, rx_filename, sizeof(rx_filename)-1);
+              dbprint("rx dir name="); dbprintln((char *)rx_dirname);
+              dbprint("rx file name="); dbprintln((char *)rx_filename);
               if (rx_buf[0] != '\0') {
-                fsptr->remove((char *)rx_buf);
-                strncpy(rx_filename, (char *)rx_buf, sizeof(rx_filename)-1);
+                fsptr->remove((char *)rx_filename);
                 rx_filename[sizeof(rx_filename)-1] = '\0';
                 rxmodem = fsptr->open(rx_filename, FILE_WRITE);
                 if (rxmodem) {
@@ -297,7 +312,7 @@ int XYmodem::loop(void)
           if (block == next_block) {
             dbprintln("Good block");
             next_block++;
-            int bytesOut = min(blocksizenext, rx_file_remaining);
+            uint32_t bytesOut = min((uint32_t)blocksizenext, rx_file_remaining);
             rxmodem.write(rx_buf, bytesOut);
             rx_file_remaining -= bytesOut;
             dbprint("rx_file_remaining="); dbprint(rx_file_remaining);
@@ -307,10 +322,12 @@ int XYmodem::loop(void)
           }
           else if (block == 0) {
             // ymodem block 0 file name, file size, etc.
-            dbprint("rx file name="); dbprintln((char *)rx_buf);
+            dbprint("rx file name (rx_buf)="); dbprintln((char *)rx_buf);
+            make_full_pathname((char*)rx_buf, rx_filename, sizeof(rx_filename)-1);
+            dbprint("rx dir name="); dbprintln((char *)rx_dirname);
+            dbprint("rx file name="); dbprintln((char *)rx_filename);
             if (rx_buf[0] != '\0') {
-              fsptr->remove((char *)rx_buf);
-              strncpy(rx_filename, (char *)rx_buf, sizeof(rx_filename)-1);
+              fsptr->remove((char *)rx_filename);
               rx_filename[sizeof(rx_filename)-1] = '\0';
               rxmodem = fsptr->open(rx_filename, FILE_WRITE);
               if (rxmodem) {
@@ -373,6 +390,38 @@ inline uint16_t XYmodem::updcrc(uint8_t c, uint16_t crc)
   } while (--count);
   return crc;
 }
+
+int XYmodem::make_full_pathname(char *name, char *pathname, size_t pathname_len)
+{
+  if (name == NULL || name == '\0') return -1;
+  if (pathname == NULL || pathname_len == 0) return -1;
+
+  // if dir name starts with '/', it is a full pathname so make it.
+  // else form full pathname with current working directory.
+  if (*name == '/') {
+    strncpy(pathname, name, pathname_len);
+    pathname[pathname_len-1] = '\0';
+  }
+  else {
+    strcpy(pathname, rx_dirname);
+    if (rx_dirname[strlen(rx_dirname)-1] == '/') {
+      if (strlen(rx_dirname) + strlen(name) >= pathname_len) {
+        port->println("pathname too long");
+        return -2;
+      }
+    }
+    else {
+      if (strlen(rx_dirname) + 1 + strlen(name) >= pathname_len) {
+        port->println("pathname too long");
+        return -2;
+      }
+      strcat(pathname, "/");
+    }
+    strcat(pathname, name);
+  }
+  return 0;
+}
+
 
 // TODO: move these out into the CPE-specific examples
 #if 0

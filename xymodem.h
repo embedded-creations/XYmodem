@@ -136,6 +136,7 @@ class XYmodem {
 
     // TODO: why not include port in constructor, instead of each start call?
     int start_rb(Stream &port, FS &filesys, bool rx_buf_1k, bool useCRC);
+    int start_rb(Stream &port, FS &filesys, const char *rx_directory, bool rx_buf_1k, bool useCRC);
     //int begin(void);
     int loop(void);
   private:
@@ -148,6 +149,7 @@ class XYmodem {
     };
     rxmodem_t rxmodem_state = IDLE;
     char rx_filename[128+1];
+    char rx_dirname[128+1];
     uint8_t next_block;
     uint8_t *rx_buf = NULL;
     uint16_t rx_buf_size = 128;
@@ -163,6 +165,7 @@ class XYmodem {
   private:
     int start(Stream *port, FS *filesys, const char *rx_filename, bool rx_buf_1k, bool useCRC);
     uint16_t updcrc(uint8_t c, uint16_t crc);
+    int make_full_pathname(char *name, char *pathname, size_t pathname_len);
 };
 
 #endif /* _XYMODEM_H_ */
